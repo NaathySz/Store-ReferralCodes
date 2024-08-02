@@ -1,0 +1,12 @@
+{
+    "Prefix": "{red}[Referans kodu] {white}",
+
+    "Your referral code": "Referans kodunuz: {green}{0}",
+    "Already used referral code": "Zaten bir referans kodu kullandınız",
+    "Invalid referral code": "Geçersiz referans kodu.",
+    "You used a referral code": "{blue}{0}{white} adlı kişinin referans kodunu kullandınız. {green}{1} {white}kredi kazandınız.",
+    "Cannot use own referral": "Kendi referans kodunuzu kullanamazsınız.",
+    "Invite count": "Referans kodunuz {green}{0} {white}kere kullanıldı.",
+    "Dont have referral": "Henüz bir referans kodunuz yok. Hemen oluşturun.",
+    "Threshold bonus": "Referans kodunuz {green}{0} {white}kere kullanıldı. {green}{1} {white}kredi kazandınız."
+}
