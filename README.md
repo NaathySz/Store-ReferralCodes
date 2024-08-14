@@ -18,7 +18,7 @@ Config will be auto generated. Default:
     "myinvites",
     "invites"
   ],
-  "top_referrals_command": [
+  "top_referrals_commands": [
     "topreferrals"
   ],
   "bonus_thresholds": {
