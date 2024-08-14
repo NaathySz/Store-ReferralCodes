@@ -23,7 +23,7 @@ public class Store_ReferralConfig : BasePluginConfig
     [JsonPropertyName("referral_count_commands")]
     public List<string> ReferralCount { get; set; } = ["myinvites", "invites"];
 
-    [JsonPropertyName("top_referrals_command")]
+    [JsonPropertyName("top_referrals_commands")]
     public List<string> TopReferrals { get; set; } = ["topreferrals"];
 
     [JsonPropertyName("bonus_thresholds")]
