@@ -20,8 +20,11 @@ public class Store_ReferralConfig : BasePluginConfig
     [JsonPropertyName("generate_referral_commands")]
     public List<string> GenerateReferralCommands { get; set; } = ["generate_referral_code", "myreferral"];
 
-    [JsonPropertyName("referral_count")]
+    [JsonPropertyName("referral_count_commands")]
     public List<string> ReferralCount { get; set; } = ["myinvites", "invites"];
+
+    [JsonPropertyName("top_referrals_command")]
+    public List<string> TopReferrals { get; set; } = ["topreferrals"];
 
     [JsonPropertyName("bonus_thresholds")]
     public Dictionary<int, int> BonusThresholds { get; set; } = new() { { 5, 1000 }, { 10, 2000 }, { 15, 3000 } };
@@ -44,8 +47,8 @@ public class Store_ReferralConfig : BasePluginConfig
 
 public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
 {
-    public override string ModuleName => "Store Module [Referral]";
-    public override string ModuleVersion => "0.0.1";
+    public override string ModuleName => "Store Module [Referral Codes]";
+    public override string ModuleVersion => "0.1.0";
     public override string ModuleAuthor => "Nathy";
 
     public IStoreApi? StoreApi { get; set; }
@@ -79,6 +82,11 @@ public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
         {
             AddCommand($"css_{cmd}", "Check how many times your referral code has been used", Command_CheckReferrals);
         }
+
+        foreach (var cmd in Config.TopReferrals)
+        {
+            AddCommand($"css_{cmd}", "Show top 10 players with the most referrals", Command_TopReferrals);
+        }
     }
 
     [CommandHelper(minArgs: 1, usage: "<code>")]
@@ -89,10 +97,36 @@ public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
         if (StoreApi == null) throw new Exception("StoreApi could not be located.");
 
         string referralCode = info.GetArg(1);
+        string steamID = player.SteamID.ToString();
 
         using (var connection = new MySqlConnection(GetConnectionString()))
         {
             connection.Open();
+
+            string checkCodeQuery = "SELECT OwnCode FROM store_referral_codes WHERE SteamID = @SteamID";
+            using (var checkCodeCommand = new MySqlCommand(checkCodeQuery, connection))
+            {
+                checkCodeCommand.Parameters.AddWithValue("@SteamID", steamID);
+                using (var reader = checkCodeCommand.ExecuteReader())
+                {
+                    if (!reader.Read() || reader.IsDBNull(reader.GetOrdinal("OwnCode")))
+                    {
+                        reader.Close();
+
+                        string newCode = GenerateRandomCode();
+                        reader.Close();
+                        
+                        string insertCodeQuery = "INSERT INTO store_referral_codes (SteamID, Name, OwnCode) VALUES (@SteamID, @Name, @OwnCode) ON DUPLICATE KEY UPDATE OwnCode = @OwnCode";
+                        using (var insertCodeCommand = new MySqlCommand(insertCodeQuery, connection))
+                        {
+                            insertCodeCommand.Parameters.AddWithValue("@SteamID", steamID);
+                            insertCodeCommand.Parameters.AddWithValue("@Name", player.PlayerName);
+                            insertCodeCommand.Parameters.AddWithValue("@OwnCode", newCode);
+                            insertCodeCommand.ExecuteNonQuery();
+                        }
+                    }
+                }
+            }
 
             string checkQuery = "SELECT COUNT(*) FROM store_referral_codes WHERE SteamID = @SteamID AND UsedCode IS NOT NULL";
             using (var checkCommand = new MySqlCommand(checkQuery, connection))
@@ -116,7 +150,7 @@ public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
                 {
                     if (reader.Read())
                     {
-                        string referrerSteamID = reader.GetString("SteamID");
+                        string referrerSteamID = reader.GetUInt64("SteamID").ToString();
 
                         if (referrerSteamID == player.SteamID.ToString())
                         {
@@ -284,6 +318,54 @@ public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
                     {
                         player.PrintToChat(Localizer["Prefix"] + Localizer["Dont have referral"]);
                     }
+                }
+            }
+        }
+    }
+
+    public void Command_TopReferrals(CCSPlayerController? player, CommandInfo info)
+    {
+        if (player == null) return;
+
+        if (StoreApi == null) throw new Exception("StoreApi could not be located.");
+
+        using (var connection = new MySqlConnection(GetConnectionString()))
+        {
+            connection.Open();
+
+            string query = @"
+                SELECT Name, UsageCount
+                FROM store_referral_codes
+                ORDER BY UsageCount DESC
+                LIMIT 10";
+
+            using (var command = new MySqlCommand(query, connection))
+            using (var reader = command.ExecuteReader())
+            {
+                var topPlayers = new List<string>();
+                int rank = 1;
+
+                while (reader.Read())
+                {
+                    string playerName = reader.GetString("Name");
+                    int usageCount = reader.GetInt32("UsageCount");
+                    string message = Localizer["Top referrals", rank, playerName, usageCount];
+                    topPlayers.Add(message);
+                    rank++;
+                }
+
+                if (topPlayers.Count > 0)
+                {
+                    player.PrintToChat(Localizer["Top 10"]);
+                    foreach (var playerMessage in topPlayers)
+                    {
+                        player.PrintToChat(playerMessage);
+                    }
+                    player.PrintToChat(Localizer["Top 10 bottom"]);
+                }
+                else
+                {
+                    player.PrintToChat(Localizer["Prefix"] + Localizer["No referrals data available"]);
                 }
             }
         }
