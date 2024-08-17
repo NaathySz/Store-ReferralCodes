@@ -48,7 +48,7 @@ public class Store_ReferralConfig : BasePluginConfig
 public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
 {
     public override string ModuleName => "Store Module [Referral Codes]";
-    public override string ModuleVersion => "0.1.0";
+    public override string ModuleVersion => "0.1.1";
     public override string ModuleAuthor => "Nathy";
 
     public IStoreApi? StoreApi { get; set; }
@@ -381,7 +381,15 @@ public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
 
     private string GetConnectionString()
     {
-        return $"Server={Config.DatabaseHost};Port={Config.DatabasePort};Database={Config.DatabaseName};User ID={Config.DatabaseUser};Password={Config.DatabasePassword};";
+        var builder = new MySqlConnectionStringBuilder
+        {
+            Server = Config.DatabaseHost,
+            Port = (uint)Config.DatabasePort,
+            Database = Config.DatabaseName,
+            UserID = Config.DatabaseUser,
+            Password = Config.DatabasePassword
+        };
+        return builder.ConnectionString;
     }
 
     private void InitializeDatabase()
