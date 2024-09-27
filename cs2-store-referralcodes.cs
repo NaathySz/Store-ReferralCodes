@@ -427,7 +427,7 @@ public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
         int rank = 1;
         foreach (var (playerName, usageCount) in topPlayers)
         {
-            string message = $"{rank}. {playerName}: {usageCount}";
+            string message = Localizer["Top referrals", rank, playerName, usageCount];
             items.Add(new MenuItem(MenuItemType.Text, new MenuValue(message)));
             referralDictionary[rank] = (playerName, usageCount);
             rank++;
