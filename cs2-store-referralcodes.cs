@@ -59,7 +59,7 @@ public class Store_ReferralConfig : BasePluginConfig
 public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
 {
     public override string ModuleName => "Store Module [Referral Codes]";
-    public override string ModuleVersion => "0.1.1";
+    public override string ModuleVersion => "0.1.2";
     public override string ModuleAuthor => "Nathy";
 
     public IStoreApi? StoreApi { get; set; }
