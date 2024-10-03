@@ -6,6 +6,9 @@ Config will be auto generated. Default:
 ```json
 {
   "referral_bonus": 100,
+  "TopMenuType": 0, //0 - Chat menu, 1 - Kitsune menu
+  "KitsuneMenuDeveloperDisplay": true, //If its true, then showing who is developing the Kitsune menu. Its only needed if TopMenuType is 1
+  "top_players_limit": 10, //Showing the top X players in the chat menu / Kitsune menu
   "referral_commands": [
     "referral",
     "useinvitecode"

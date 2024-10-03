@@ -19,5 +19,8 @@
         <Reference Include="StoreApi">
             <HintPath>StoreApi.dll</HintPath>
         </Reference>
+      <Reference Include="KitsuneMenu">
+        <HintPath>KitsuneMenu.dll</HintPath>
+      </Reference>
     </ItemGroup>
 </Project>

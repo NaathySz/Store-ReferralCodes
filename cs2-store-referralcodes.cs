@@ -6,6 +6,8 @@ using StoreApi;
 using MySqlConnector;
 using System.Collections.Concurrent;
 using System.Text.Json.Serialization;
+using Menu;
+using Menu.Enums;
 
 namespace Store_Referral;
 
@@ -13,6 +15,15 @@ public class Store_ReferralConfig : BasePluginConfig
 {
     [JsonPropertyName("referral_bonus")]
     public int ReferralBonus { get; set; } = 100;
+
+    [JsonPropertyName("TopMenuType")]
+    public int TopMenuType { get; set; } = 0;
+
+    [JsonPropertyName("KitsuneMenuDeveloperDisplay")]
+    public bool KitsuneMenuDeveloperDisplay { get; set; } = true;
+
+    [JsonPropertyName("top_players_limit")]
+    public int TopPlayersLimit { get; set; } = 10;
 
     [JsonPropertyName("referral_commands")]
     public List<string> ReferralCommands { get; set; } = ["referral", "useinvitecode"];
@@ -48,17 +59,25 @@ public class Store_ReferralConfig : BasePluginConfig
 public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
 {
     public override string ModuleName => "Store Module [Referral Codes]";
-    public override string ModuleVersion => "0.1.1";
+    public override string ModuleVersion => "0.1.2";
     public override string ModuleAuthor => "Nathy";
 
     public IStoreApi? StoreApi { get; set; }
     public Store_ReferralConfig Config { get; set; } = new();
+
+    public KitsuneMenu Menu { get; private set; } = null!;
+    
+    private void Menu_OnLoad()
+    {
+        Menu = new KitsuneMenu(this);
+    }
 
     public override void OnAllPluginsLoaded(bool hotReload)
     {
         StoreApi = IStoreApi.Capability.Get() ?? throw new Exception("StoreApi could not be located.");
         InitializeDatabase();
         CreateCommands();
+        Menu_OnLoad();
     }
 
     public void OnConfigParsed(Store_ReferralConfig config)
@@ -323,52 +342,106 @@ public class Store_Referral : BasePlugin, IPluginConfig<Store_ReferralConfig>
         }
     }
 
-    public void Command_TopReferrals(CCSPlayerController? player, CommandInfo info)
+    public void Command_TopReferrals(CCSPlayerController? player, CommandInfo info) 
     {
         if (player == null) return;
 
         if (StoreApi == null) throw new Exception("StoreApi could not be located.");
 
+        if (Config.TopMenuType == 0)
+        {
+            ShowTopReferralsChatMenu(player);
+        }
+        else if (Config.TopMenuType == 1)
+        {
+            ShowTopReferralsKitsuneMenu(player);
+        }
+    }
+
+    private List<(string playerName, int usageCount)> FetchTopReferrals(int limit)
+    {
+        var referrals = new List<(string playerName, int usageCount)>();
+
         using (var connection = new MySqlConnection(GetConnectionString()))
         {
             connection.Open();
 
-            string query = @"
+            string query = $@"
                 SELECT Name, UsageCount
                 FROM store_referral_codes
                 ORDER BY UsageCount DESC
-                LIMIT 10";
+                LIMIT {limit}";
 
             using (var command = new MySqlCommand(query, connection))
             using (var reader = command.ExecuteReader())
             {
-                var topPlayers = new List<string>();
-                int rank = 1;
-
                 while (reader.Read())
                 {
                     string playerName = reader.GetString("Name");
                     int usageCount = reader.GetInt32("UsageCount");
-                    string message = Localizer["Top referrals", rank, playerName, usageCount];
-                    topPlayers.Add(message);
-                    rank++;
-                }
-
-                if (topPlayers.Count > 0)
-                {
-                    player.PrintToChat(Localizer["Top 10"]);
-                    foreach (var playerMessage in topPlayers)
-                    {
-                        player.PrintToChat(playerMessage);
-                    }
-                    player.PrintToChat(Localizer["Top 10 bottom"]);
-                }
-                else
-                {
-                    player.PrintToChat(Localizer["Prefix"] + Localizer["No referrals data available"]);
+                    referrals.Add((playerName, usageCount));
                 }
             }
         }
+
+        return referrals;
+    }
+
+    private void ShowTopReferralsChatMenu(CCSPlayerController player)
+    {
+        var topPlayers = FetchTopReferrals(Config.TopPlayersLimit);
+
+        if (topPlayers.Count > 0)
+        {
+            player.PrintToChat(Localizer[$"Top {Config.TopPlayersLimit}"]);
+            int rank = 1;
+
+            foreach (var (playerName, usageCount) in topPlayers)
+            {
+                string message = Localizer["Top referrals", rank, playerName, usageCount];
+                player.PrintToChat(message);
+                rank++;
+            }
+
+            player.PrintToChat(Localizer[$"Top {Config.TopPlayersLimit} bottom"]);
+        }
+        else
+        {
+            player.PrintToChat(Localizer["Prefix"] + Localizer["No referrals data available"]);
+        }
+    }
+
+    private void ShowTopReferralsKitsuneMenu(CCSPlayerController player)
+    {
+        if (Menu == null)
+        {
+            return;
+        }
+
+        string title = Localizer["Top Referrals"];
+        List<MenuItem> items = new List<MenuItem>();
+        var referralDictionary = new Dictionary<int, (string playerName, int usageCount)>();
+
+        var topPlayers = FetchTopReferrals(Config.TopPlayersLimit);
+
+        int rank = 1;
+        foreach (var (playerName, usageCount) in topPlayers)
+        {
+            string message = Localizer["Top referrals", rank, playerName, usageCount];
+            items.Add(new MenuItem(MenuItemType.Text, new MenuValue(message)));
+            referralDictionary[rank] = (playerName, usageCount);
+            rank++;
+        }
+
+        if (items.Count == 0)
+        {
+            player.PrintToChat(Localizer["Prefix"] + Localizer["No referrals data available"]);
+            return;
+        }
+
+        Menu?.ShowScrollableMenu(player, title, items, (buttons, menu, selected) =>
+        {
+        }, false, freezePlayer: true, disableDeveloper: !Config.KitsuneMenuDeveloperDisplay);
     }
 
     private string GenerateRandomCode()
